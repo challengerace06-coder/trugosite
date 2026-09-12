@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Trugosia | Connexion</title>
+</head>
+<body>
+    <main class="app-shell">
+        <section id="auth-view" class="auth-view" aria-labelledby="brand-title">
+            <div class="brand-mark" aria-hidden="true">T</div>
+            <p class="eyebrow">Espace privé</p>
+            <h1 id="brand-title">Trugosia</h1>
+            <p class="intro">Votre espace, simplement.</p>
+
+            <div class="auth-card">
+                <div class="tabs" role="tablist" aria-label="Authentification">
+                    <button class="tab is-active" type="button" role="tab" aria-selected="true" data-mode="login">Se connecter</button>
+                    <button class="tab" type="button" role="tab" aria-selected="false" data-mode="register">Créer un compte</button>
+                </div>
+
+                <form id="login-form" class="auth-form">
+                    <div class="field">
+                        <label for="login-identifier">Identifiant</label>
+                        <input id="login-identifier" name="identifier" type="text" autocomplete="username" placeholder="votre identifiant" required>
+                    </div>
+                    <div class="field">
+                        <label for="login-password">Mot de passe</label>
+                        <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="votre mot de passe" required>
+                    </div>
+                    <button class="primary-button" type="submit">Entrer dans Trugosia <span aria-hidden="true">→</span></button>
+                </form>
+
+                <form id="register-form" class="auth-form is-hidden">
+                    <div class="field">
+                        <label for="register-identifier">Choisissez un identifiant</label>
+                        <input id="register-identifier" name="identifier" type="text" autocomplete="username" placeholder="ex. alexandre" minlength="3" required>
+                    </div>
+                    <div class="field">
+                        <label for="register-password">Choisissez un mot de passe</label>
+                        <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="6 caractères minimum" minlength="6" required>
+                    </div>
+                    <button class="primary-button" type="submit">Créer mon compte <span aria-hidden="true">→</span></button>
+                </form>
+                <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+            </div>
+            <p class="security-note"><span aria-hidden="true">⌁</span> Vos données restent sur cet appareil</p>
+        </section>
+
+        <section id="welcome-view" class="welcome-view is-hidden" aria-labelledby="welcome-title">
+            <header class="welcome-header">
+                <div class="mini-brand"><span aria-hidden="true">T</span> Trugosia</div>
+                <button id="logout-button" class="logout-button" type="button">Se déconnecter</button>
+            </header>
+            <div class="welcome-content">
+                <p class="eyebrow">Espace personnel</p>
+                <h2 id="welcome-title">Bienvenue sur Trugosia<span class="dot">.</span></h2>
+                <p id="welcome-user" class="welcome-user"></p>
+                <div id="account-details" class="account-details" aria-live="polite"></div>
+                <a id="discord-link" class="discord-link" href="/api/discord/start">Lier mon compte Discord <span aria-hidden="true">↗</span></a>
+            </div>
+        </section>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
