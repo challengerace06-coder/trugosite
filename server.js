@@ -13,6 +13,8 @@ const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `http://localho
 const DATA_FILE = path.join(__dirname, 'data', 'users.json');
 const sessions = new Map();
 const oauthStates = new Map();
+const onlineUsers = new Set();
+const presenceState = new Map();
 
 if (!BOT_TOKEN) {
     console.error('DISCORD_BOT_TOKEN est manquant. Copiez .env.example vers .env et ajoutez un nouveau token.');
@@ -75,6 +77,31 @@ function publicAccount(user, discord = null) {
         description: typeof user.description === 'string' ? user.description : '',
         theme: user.theme === 'dark' ? 'dark' : 'light',
         discord
+    };
+}
+
+function normalizeIdentifier(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function userPresence(identifier) {
+    const state = presenceState.get(identifier) || {};
+    return {
+        identifier,
+        online: onlineUsers.has(identifier),
+        typing: Boolean(state.typing),
+        voice: Boolean(state.voice),
+        inChat: Boolean(state.inChat)
+    };
+}
+
+function publicContact(user, identifier) {
+    return {
+        identifier,
+        online: onlineUsers.has(identifier),
+        typing: Boolean((presenceState.get(identifier) || {}).typing),
+        voice: Boolean((presenceState.get(identifier) || {}).voice),
+        inChat: Boolean((presenceState.get(identifier) || {}).inChat)
     };
 }
 
@@ -168,7 +195,7 @@ async function handleApi(request, response, pathname) {
 
     if (pathname === '/api/register' && request.method === 'POST') {
         const { identifier, password } = await readBody(request);
-        const normalized = String(identifier || '').trim().toLowerCase();
+        const normalized = normalizeIdentifier(identifier);
         if (!/^[a-z0-9_.-]{3,32}$/.test(normalized) || String(password || '').length < 6) return sendJson(response, 400, { error: 'Identifiant ou mot de passe invalide.' });
         if (users[normalized]) return sendJson(response, 409, { error: 'Cet identifiant est déjà utilisé.' });
 
@@ -178,22 +205,30 @@ async function handleApi(request, response, pathname) {
             createdAt: new Date().toISOString(),
             loginCount: 0,
             description: '',
-            theme: 'light'
+            theme: 'light',
+            contacts: [],
+            chats: {}
         };
 
         users[normalized] = user;
         writeUsers(users);
+        onlineUsers.add(user.identifier);
+        presenceState.set(user.identifier, { typing: false, voice: false, inChat: false });
         return createSession(response, user);
     }
 
     if (pathname === '/api/login' && request.method === 'POST') {
         const { identifier, password } = await readBody(request);
-        const user = users[String(identifier || '').trim().toLowerCase()];
+        const user = users[normalizeIdentifier(identifier)];
         if (!user || !(await passwordMatches(String(password || ''), user.passwordHash))) return sendJson(response, 401, { error: 'Identifiant ou mot de passe incorrect.' });
 
         user.loginCount = Number(user.loginCount || 0) + 1;
         user.lastLoginAt = new Date().toISOString();
+        user.contacts = Array.isArray(user.contacts) ? user.contacts : [];
+        user.chats = user.chats || {};
         writeUsers(users);
+        onlineUsers.add(user.identifier);
+        presenceState.set(user.identifier, { typing: false, voice: false, inChat: false });
         return createSession(response, user);
     }
 
@@ -226,14 +261,156 @@ async function handleApi(request, response, pathname) {
 
         delete users[identifier];
         sessions.delete(token);
+        onlineUsers.delete(identifier);
+        presenceState.delete(identifier);
         writeUsers(users);
 
         return sendJson(response, 200, { ok: true }, { 'Set-Cookie': 'trugosia_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax' });
     }
 
     if (pathname === '/api/logout' && request.method === 'POST') {
-        sessions.delete(parseCookies(request).trugosia_session);
+        const token = parseCookies(request).trugosia_session;
+        const identifier = sessions.get(token);
+        if (identifier) {
+            onlineUsers.delete(identifier);
+            presenceState.delete(identifier);
+        }
+        sessions.delete(token);
         return sendJson(response, 200, { ok: true }, { 'Set-Cookie': 'trugosia_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax' });
+    }
+
+    if (pathname === '/api/users/search' && request.method === 'GET') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const query = normalizeIdentifier(new URL(request.url, `http://${request.headers.host}`).searchParams.get('q') || '');
+        const matches = Object.keys(users)
+            .filter((identifier) => identifier !== currentUser.identifier)
+            .filter((identifier) => !query || identifier.includes(query))
+            .map((identifier) => {
+                const user = users[identifier];
+                return {
+                    identifier,
+                    online: onlineUsers.has(identifier),
+                    description: typeof user.description === 'string' ? user.description : '',
+                    inContacts: Array.isArray(currentUser.contacts) && currentUser.contacts.includes(identifier)
+                };
+            });
+
+        return sendJson(response, 200, { users: matches });
+    }
+
+    if (pathname === '/api/contact/add' && request.method === 'POST') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const { identifier } = await readBody(request);
+        const target = normalizeIdentifier(identifier);
+        if (!target || target === currentUser.identifier) return sendJson(response, 400, { error: 'Identifiant invalide.' });
+        if (!users[target]) return sendJson(response, 404, { error: 'Membre introuvable.' });
+
+        currentUser.contacts = Array.isArray(currentUser.contacts) ? currentUser.contacts : [];
+        currentUser.chats = currentUser.chats || {};
+        currentUser.chats[target] = currentUser.chats[target] || [];
+
+        if (!currentUser.contacts.includes(target)) currentUser.contacts.push(target);
+        const peer = users[target];
+        peer.contacts = Array.isArray(peer.contacts) ? peer.contacts : [];
+        peer.chats = peer.chats || {};
+        peer.chats[currentUser.identifier] = peer.chats[currentUser.identifier] || [];
+        if (!peer.contacts.includes(currentUser.identifier)) peer.contacts.push(currentUser.identifier);
+
+        writeUsers(users);
+        return sendJson(response, 200, { ok: true, contacts: currentUser.contacts.map((member) => publicContact(currentUser, member)) });
+    }
+
+    if (pathname === '/api/contacts' && request.method === 'GET') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const contacts = (Array.isArray(currentUser.contacts) ? currentUser.contacts : [])
+            .map((identifier) => publicContact(currentUser, identifier))
+            .filter((entry) => entry.identifier && entry.identifier !== currentUser.identifier);
+
+        return sendJson(response, 200, contacts);
+    }
+
+    if (pathname === '/api/chat/send' && request.method === 'POST') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const { to, text, type, image } = await readBody(request);
+        const target = normalizeIdentifier(to);
+        if (!target || !users[target]) return sendJson(response, 404, { error: 'Destinataire introuvable.' });
+
+        const message = {
+            id: crypto.randomUUID(),
+            from: currentUser.identifier,
+            to: target,
+            text: typeof text === 'string' ? text.trim().slice(0, 2000) : '',
+            image: typeof image === 'string' ? image : '',
+            type: type === 'image' ? 'image' : type === 'voice' ? 'voice' : 'text',
+            createdAt: new Date().toISOString()
+        };
+
+        currentUser.chats = currentUser.chats || {};
+        users[target].chats = users[target].chats || {};
+        currentUser.chats[target] = currentUser.chats[target] || [];
+        users[target].chats[currentUser.identifier] = users[target].chats[currentUser.identifier] || [];
+
+        currentUser.chats[target].push(message);
+        users[target].chats[currentUser.identifier].push({ ...message, to: currentUser.identifier, from: currentUser.identifier });
+
+        presenceState.set(currentUser.identifier, { ...(presenceState.get(currentUser.identifier) || {}), inChat: true, typing: false });
+        presenceState.set(target, { ...(presenceState.get(target) || {}), inChat: true, typing: false });
+        writeUsers(users);
+
+        return sendJson(response, 200, { ok: true, message });
+    }
+
+    if (pathname === '/api/chat/status' && request.method === 'POST') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const { to, typing, voice } = await readBody(request);
+        const target = normalizeIdentifier(to);
+        if (target && users[target]) {
+            const currentPresence = presenceState.get(currentUser.identifier) || {};
+            presenceState.set(currentUser.identifier, {
+                ...currentPresence,
+                typing: Boolean(typing),
+                voice: Boolean(voice),
+                inChat: true
+            });
+        }
+
+        return sendJson(response, 200, { ok: true });
+    }
+
+    if (pathname.startsWith('/api/chat/') && request.method === 'GET') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const peerIdentifier = decodeURIComponent(pathname.slice('/api/chat/'.length));
+        const target = normalizeIdentifier(peerIdentifier);
+        if (!target || !users[target]) return sendJson(response, 404, { error: 'Conversation introuvable.' });
+
+        const messages = (currentUser.chats && currentUser.chats[target] ? currentUser.chats[target] : []).map((message) => ({
+            ...message,
+            from: message.from || currentUser.identifier,
+            to: message.to || target
+        }));
+
+        return sendJson(response, 200, {
+            peer: publicContact(currentUser, target),
+            messages
+        });
     }
 
     sendJson(response, 404, { error: 'Route introuvable.' });
@@ -242,6 +419,8 @@ async function handleApi(request, response, pathname) {
 async function createSession(response, user) {
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, user.identifier);
+    onlineUsers.add(user.identifier);
+    presenceState.set(user.identifier, { typing: false, voice: false, inChat: false });
     return sendJson(response, 200, publicAccount(user, user.discord || null), { 'Set-Cookie': `trugosia_session=${token}; HttpOnly; Path=/; SameSite=Lax` });
 }
 

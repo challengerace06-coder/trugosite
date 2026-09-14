@@ -81,6 +81,46 @@
                     </div>
                 </section>
 
+                <section class="dashboard-panel" data-panel="add">
+                    <div class="panel-card add-card">
+                        <h3>Ajouter 😊</h3>
+                        <div class="search-box">
+                            <input id="member-search" type="text" placeholder="Rechercher un membre Trugosia..." autocomplete="off">
+                        </div>
+                        <div id="member-search-results" class="member-results"></div>
+                    </div>
+                </section>
+
+                <section class="dashboard-panel" data-panel="chatpro">
+                    <div class="panel-card chatpro-card">
+                        <div class="chat-layout">
+                            <aside class="chat-list-panel">
+                                <div class="chat-list-header">
+                                    <h3>ChatPro</h3>
+                                    <input id="chat-search" type="text" placeholder="Chercher un contact..." autocomplete="off">
+                                </div>
+                                <div id="contact-list" class="contact-list"></div>
+                            </aside>
+                            <div class="chat-panel">
+                                <div id="chat-header" class="chat-header">
+                                    <span>Sélectionnez un contact</span>
+                                </div>
+                                <div id="chat-messages" class="chat-messages"></div>
+                                <div id="chat-status-bar" class="chat-status-bar"></div>
+                                <div class="chat-actions">
+                                    <button id="voice-button" class="secondary-button mini-button" type="button">🎙️ Vocal</button>
+                                    <label class="upload-button" for="image-upload">📷 Photo</label>
+                                    <input id="image-upload" type="file" accept="image/*" hidden>
+                                </div>
+                                <div class="chat-composer">
+                                    <textarea id="chat-input" rows="2" placeholder="Écrire un message..."></textarea>
+                                    <button id="send-message-button" class="primary-button" type="button">Envoyer</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="dashboard-panel" data-panel="discord">
                     <div class="panel-card">
                         <h3>Discord</h3>
@@ -109,6 +149,14 @@
                 <button class="nav-item is-active" type="button" data-panel="profile" aria-label="Profil">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 3l8 7.5V20a1 1 0 0 1-1 1h-4v-7H9v7H5a1 1 0 0 1-1-1z"/></svg>
                     <span>Profil</span>
+                </button>
+                <button class="nav-item" type="button" data-panel="add" aria-label="Ajouter">
+                    <span class="nav-emoji" aria-hidden="true">😊</span>
+                    <span>Ajouter</span>
+                </button>
+                <button class="nav-item" type="button" data-panel="chatpro" aria-label="ChatPro">
+                    <span class="nav-emoji" aria-hidden="true">💬</span>
+                    <span>ChatPro</span>
                 </button>
                 <button class="nav-item" type="button" data-panel="discord" aria-label="Discord">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2.5a2.5 2.5 0 0 0-2.5 2.5v14A2.5 2.5 0 0 0 7 21.5h10a2.5 2.5 0 0 0 2.5-2.5V5A2.5 2.5 0 0 0 17 2.5zm0 2h10a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5zm3.5 3h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1zm0 5h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-.5a1 1 0 0 1 1-1z"/></svg>

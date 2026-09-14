@@ -16,6 +16,25 @@ const discordUserCard = document.getElementById('discord-user-card');
 const discordLink = document.getElementById('discord-link');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 const saveProfileButton = document.getElementById('save-profile-button');
+const memberSearch = document.getElementById('member-search');
+const memberSearchResults = document.getElementById('member-search-results');
+const contactList = document.getElementById('contact-list');
+const chatSearch = document.getElementById('chat-search');
+const chatInput = document.getElementById('chat-input');
+const chatMessages = document.getElementById('chat-messages');
+const chatHeader = document.getElementById('chat-header');
+const chatStatusBar = document.getElementById('chat-status-bar');
+const sendMessageButton = document.getElementById('send-message-button');
+const voiceButton = document.getElementById('voice-button');
+const imageUpload = document.getElementById('image-upload');
+
+const state = {
+    account: null,
+    selectedContact: null,
+    contacts: [],
+    typingTimer: null,
+    voiceActive: false
+};
 
 function showMessage(message, type = '') {
     formMessage.textContent = message;
@@ -38,6 +57,117 @@ function applyTheme(theme) {
     const finalTheme = theme === 'dark' ? 'dark' : 'light';
     document.body.dataset.theme = finalTheme;
     darkModeToggle.checked = finalTheme === 'dark';
+}
+
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[character]));
+}
+
+function renderContacts(list) {
+    const query = chatSearch.value.trim().toLowerCase();
+    const filtered = list.filter((entry) => entry.identifier.toLowerCase().includes(query));
+
+    if (!filtered.length) {
+        contactList.innerHTML = '<div class="empty-state">Aucun membre ajouté.</div>';
+        return;
+    }
+
+    contactList.innerHTML = filtered.map((contact) => `
+        <button class="contact-item ${state.selectedContact === contact.identifier ? 'selected' : ''}" type="button" data-contact="${contact.identifier}">
+            <div class="contact-avatar">${escapeHtml(contact.identifier.charAt(0).toUpperCase())}</div>
+            <div class="contact-meta">
+                <strong>${escapeHtml(contact.identifier)}</strong>
+                <small>${contact.online ? 'En ligne' : 'Hors ligne'}${contact.typing ? ' · écrit...' : ''}${contact.voice ? ' · vocal...' : ''}</small>
+            </div>
+        </button>
+    `).join('');
+
+    contactList.querySelectorAll('.contact-item').forEach((item) => {
+        item.addEventListener('click', () => selectConversation(item.dataset.contact));
+    });
+}
+
+function renderMembers(results) {
+    if (!results.length) {
+        memberSearchResults.innerHTML = '<div class="empty-state">Aucun résultat.</div>';
+        return;
+    }
+
+    memberSearchResults.innerHTML = results.map((user) => `
+        <div class="member-row">
+            <div>
+                <strong>${escapeHtml(user.identifier)}</strong>
+                <small>${user.online ? 'En ligne' : 'Hors ligne'}</small>
+            </div>
+            <button type="button" class="mini-add-button" data-add-member="${user.identifier}">Ajouter</button>
+        </div>
+    `).join('');
+
+    memberSearchResults.querySelectorAll('[data-add-member]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            try {
+                await request('/api/contact/add', { method: 'POST', body: JSON.stringify({ identifier: button.dataset.addMember }) });
+                await loadContacts();
+                memberSearch.value = '';
+                renderMembers([]);
+                setActivePanel('chatpro');
+                selectConversation(button.dataset.addMember);
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+    });
+}
+
+function renderConversation(messages, peerInfo = null) {
+    if (!state.selectedContact) {
+        chatMessages.innerHTML = '<div class="empty-state">Choisissez un contact pour ouvrir le chat.</div>';
+        chatHeader.innerHTML = '<span>Sélectionnez un contact</span>';
+        chatStatusBar.textContent = '';
+        return;
+    }
+
+    const peer = peerInfo || { identifier: state.selectedContact, online: false, typing: false, voice: false };
+    chatHeader.innerHTML = `
+        <div class="chat-identity">
+            <span class="contact-avatar small">${escapeHtml(peer.identifier.charAt(0).toUpperCase())}</span>
+            <div>
+                <strong>${escapeHtml(peer.identifier)}</strong>
+                <small>${peer.online ? 'connecté' : 'hors ligne'}${peer.typing ? ' • écrit...' : ''}${peer.voice ? ' • vocal en cours' : ''}</small>
+            </div>
+        </div>
+    `;
+
+    const status = peer.typing ? 'Écrit...' : peer.voice ? 'En vocal...' : peer.online ? 'Connecté' : 'Déconnecté';
+    chatStatusBar.textContent = status;
+
+    if (!messages.length) {
+        chatMessages.innerHTML = '<div class="empty-state">Aucune conversation pour le moment.</div>';
+        return;
+    }
+
+    chatMessages.innerHTML = messages.map((message) => {
+        const isOwn = message.from === state.account.identifier;
+        const media = message.type === 'image' && message.image ? `<img src="${message.image}" alt="Image envoyée" class="chat-image" />` : '';
+        const text = message.text ? escapeHtml(message.text) : '';
+        const label = message.type === 'voice' ? '🎙️ Vocal' : message.type === 'image' ? '📷 Photo' : 'Message';
+        return `
+            <div class="message-row ${isOwn ? 'own' : 'other'}">
+                <div class="message-bubble ${isOwn ? 'own' : 'other'}">
+                    <span class="message-tag">${label}</span>
+                    ${media || `<div>${text}</div>`}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function renderDiscord(account) {
@@ -70,6 +200,7 @@ function renderDiscord(account) {
 function showDashboard(account) {
     authView.classList.add('is-hidden');
     dashboardView.classList.remove('is-hidden');
+    state.account = account;
     profileName.textContent = account.identifier;
     loginCount.textContent = String(account.loginCount || 0);
     profileDescription.value = account.description || '';
@@ -77,22 +208,17 @@ function showDashboard(account) {
     renderDiscord(account);
     applyTheme(account.theme || 'light');
     setActivePanel('profile');
+    loadContacts();
 }
 
 function showAuth() {
+    state.account = null;
+    state.selectedContact = null;
+    state.contacts = [];
+    chatMessages.innerHTML = '';
     dashboardView.classList.add('is-hidden');
     authView.classList.remove('is-hidden');
     profileStatus.textContent = '';
-}
-
-function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, (character) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    }[character]));
 }
 
 async function request(path, options = {}) {
@@ -103,6 +229,117 @@ async function request(path, options = {}) {
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'Une erreur est survenue.');
     return body;
+}
+
+async function loadContacts() {
+    if (!state.account) return;
+    try {
+        const contacts = await request('/api/contacts');
+        state.contacts = contacts;
+        renderContacts(contacts);
+        if (state.selectedContact) {
+            const selected = contacts.find((contact) => contact.identifier === state.selectedContact);
+            if (selected) {
+                loadConversation(selected.identifier);
+            }
+        }
+    } catch (error) {
+        console.warn(error);
+    }
+}
+
+async function loadConversation(identifier) {
+    if (!identifier) return;
+    state.selectedContact = identifier;
+    try {
+        const data = await request(`/api/chat/${encodeURIComponent(identifier)}`);
+        renderConversation(data.messages || [], data.peer || { identifier, online: false, typing: false, voice: false });
+        renderContacts(state.contacts);
+    } catch (error) {
+        console.warn(error);
+    }
+}
+
+function selectConversation(identifier) {
+    state.selectedContact = identifier;
+    loadConversation(identifier);
+}
+
+async function searchMembers() {
+    const query = memberSearch.value.trim();
+    if (!query) {
+        renderMembers([]);
+        return;
+    }
+    try {
+        const data = await request(`/api/users/search?q=${encodeURIComponent(query)}`);
+        renderMembers(data.users || []);
+    } catch (error) {
+        renderMembers([]);
+    }
+}
+
+async function sendMessage() {
+    if (!state.selectedContact) return;
+    const text = chatInput.value.trim();
+    if (!text) return;
+    try {
+        await request('/api/chat/send', { method: 'POST', body: JSON.stringify({ to: state.selectedContact, text, type: 'text' }) });
+        chatInput.value = '';
+        updateTypingStatus(false);
+        await loadConversation(state.selectedContact);
+        await loadContacts();
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+async function updateTypingStatus(isTyping) {
+    if (!state.selectedContact) return;
+    try {
+        await request('/api/chat/status', { method: 'POST', body: JSON.stringify({ to: state.selectedContact, typing: isTyping }) });
+    } catch (error) {
+        console.warn(error);
+    }
+}
+
+async function toggleVoice() {
+    if (!state.selectedContact) return;
+    state.voiceActive = !state.voiceActive;
+    voiceButton.classList.toggle('active', state.voiceActive);
+    try {
+        await request('/api/chat/status', { method: 'POST', body: JSON.stringify({ to: state.selectedContact, voice: state.voiceActive }) });
+        await loadConversation(state.selectedContact);
+        await loadContacts();
+    } catch (error) {
+        console.warn(error);
+    }
+}
+
+async function handleImageUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file || !state.selectedContact) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+        try {
+            await request('/api/chat/send', { method: 'POST', body: JSON.stringify({ to: state.selectedContact, type: 'image', image: String(reader.result) }) });
+            await loadConversation(state.selectedContact);
+            await loadContacts();
+        } catch (error) {
+            alert(error.message);
+        }
+        event.target.value = '';
+    };
+    reader.readAsDataURL(file);
+}
+
+function bindTypingEvents() {
+    chatInput.addEventListener('input', () => {
+        if (!state.selectedContact) return;
+        if (state.typingTimer) clearTimeout(state.typingTimer);
+        updateTypingStatus(true);
+        state.typingTimer = setTimeout(() => updateTypingStatus(false), 1500);
+    });
 }
 
 tabs.forEach((tab) => {
@@ -204,6 +441,13 @@ document.getElementById('delete-account-button').addEventListener('click', async
         profileStatus.className = 'status-text error';
     }
 });
+
+memberSearch.addEventListener('input', searchMembers);
+chatSearch.addEventListener('input', () => loadContacts());
+sendMessageButton.addEventListener('click', sendMessage);
+voiceButton.addEventListener('click', toggleVoice);
+imageUpload.addEventListener('change', handleImageUpload);
+bindTypingEvents();
 
 const query = new URLSearchParams(window.location.search);
 if (query.get('discord') === 'linked') {
