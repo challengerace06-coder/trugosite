@@ -49,18 +49,76 @@
             <p class="security-note"><span aria-hidden="true">⌁</span> Vos données restent sur cet appareil</p>
         </section>
 
-        <section id="welcome-view" class="welcome-view is-hidden" aria-labelledby="welcome-title">
-            <header class="welcome-header">
+        <section id="dashboard-view" class="dashboard-view is-hidden" aria-live="polite">
+            <header class="dashboard-header">
                 <div class="mini-brand"><span aria-hidden="true">T</span> Trugosia</div>
-                <button id="logout-button" class="logout-button" type="button">Se déconnecter</button>
+                <button id="header-logout-button" class="logout-button" type="button">Se déconnecter</button>
             </header>
-            <div class="welcome-content">
-                <p class="eyebrow">Espace personnel</p>
-                <h2 id="welcome-title">Bienvenue sur Trugosia<span class="dot">.</span></h2>
-                <p id="welcome-user" class="welcome-user"></p>
-                <div id="account-details" class="account-details" aria-live="polite"></div>
-                <a id="discord-link" class="discord-link" href="/api/discord/start">Lier mon compte Discord <span aria-hidden="true">↗</span></a>
+
+            <div class="dashboard-body">
+                <section class="dashboard-panel is-active" data-panel="profile">
+                    <div class="panel-card profile-card">
+                        <div class="profile-head">
+                            <div class="profile-avatar">T</div>
+                            <div>
+                                <p class="profile-caption">Compte</p>
+                                <h2 id="profile-name">Utilisateur</h2>
+                            </div>
+                        </div>
+
+                        <div class="stat-row">
+                            <span>Nombre de connexions</span>
+                            <strong id="login-count">0</strong>
+                        </div>
+
+                        <label class="field compact-field" for="profile-description">
+                            <span>Présentation</span>
+                            <textarea id="profile-description" rows="5" maxlength="240" placeholder="Décris toi en quelques mots..."></textarea>
+                        </label>
+
+                        <button id="save-profile-button" class="primary-button secondary-cta" type="button">Enregistrer la description</button>
+                        <p id="profile-status" class="status-text" aria-live="polite"></p>
+                    </div>
+                </section>
+
+                <section class="dashboard-panel" data-panel="discord">
+                    <div class="panel-card">
+                        <h3>Discord</h3>
+                        <p id="discord-state" class="muted-text">Aucun compte Discord associé.</p>
+                        <div id="discord-user-card" class="discord-user-card"></div>
+                        <a id="discord-link" class="discord-link" href="/api/discord/start">Connecter mon compte Trugosia à Discord</a>
+                    </div>
+                </section>
+
+                <section class="dashboard-panel" data-panel="settings">
+                    <div class="panel-card settings-card">
+                        <h3>Paramètres</h3>
+
+                        <label class="toggle-row" for="dark-mode-toggle">
+                            <span>Mode sombre</span>
+                            <input id="dark-mode-toggle" type="checkbox">
+                        </label>
+
+                        <button id="logout-button" class="secondary-button" type="button">Se déconnecter</button>
+                        <button id="delete-account-button" class="danger-button" type="button">Supprimer le compte</button>
+                    </div>
+                </section>
             </div>
+
+            <nav class="bottom-nav" aria-label="Navigation Trugosia">
+                <button class="nav-item is-active" type="button" data-panel="profile" aria-label="Profil">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 3l8 7.5V20a1 1 0 0 1-1 1h-4v-7H9v7H5a1 1 0 0 1-1-1z"/></svg>
+                    <span>Profil</span>
+                </button>
+                <button class="nav-item" type="button" data-panel="discord" aria-label="Discord">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2.5a2.5 2.5 0 0 0-2.5 2.5v14A2.5 2.5 0 0 0 7 21.5h10a2.5 2.5 0 0 0 2.5-2.5V5A2.5 2.5 0 0 0 17 2.5zm0 2h10a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5zm3.5 3h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1zm0 5h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-.5a1 1 0 0 1 1-1z"/></svg>
+                    <span>Discord</span>
+                </button>
+                <button class="nav-item" type="button" data-panel="settings" aria-label="Paramètres">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.62.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.18l-2.39.96a7 7 0 0 0-1.63-.94L14.4 2.5a.5.5 0 0 0-.5-.34h-3.8a.5.5 0 0 0-.5.34l-.34 2.5a7 7 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.18L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.18l2.39-.96c.5.39 1.05.71 1.63.94l.34 2.5a.5.5 0 0 0 .5.34h3.8a.5.5 0 0 0 .5-.34l.34-2.5c.58-.23 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.18l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>
+                    <span>Paramètres</span>
+                </button>
+            </nav>
         </section>
     </main>
     <script src="script.js"></script>

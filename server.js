@@ -29,7 +29,12 @@ function loadEnvFile() {
 
 function readUsers() {
     if (!fs.existsSync(DATA_FILE)) return {};
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    try {
+        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    } catch (error) {
+        console.warn('Le fichier users.json est invalide. Reset en cours.');
+        return {};
+    }
 }
 
 function writeUsers(users) {
@@ -63,7 +68,23 @@ function sendJson(response, status, data, headers = {}) {
 }
 
 function publicAccount(user, discord = null) {
-    return { identifier: user.identifier, createdAt: user.createdAt, discord };
+    return {
+        identifier: user.identifier,
+        createdAt: user.createdAt,
+        loginCount: Number(user.loginCount || 0),
+        description: typeof user.description === 'string' ? user.description : '',
+        theme: user.theme === 'dark' ? 'dark' : 'light',
+        discord
+    };
+}
+
+function publicSiteUrl() {
+    return process.env.PUBLIC_SITE_URL || `http://localhost:${PORT}`;
+}
+
+function authError(response, reason) {
+    console.error(`Discord OAuth error: ${reason}`);
+    return redirect(response, `${publicSiteUrl()}/?discord=error&reason=${encodeURIComponent(reason)}`);
 }
 
 async function exchangeDiscordCode(code) {
@@ -88,74 +109,133 @@ async function exchangeDiscordCode(code) {
     return userResponse.json();
 }
 
-async function getDiscordUser(discordId) {
-    if (!BOT_TOKEN || !discordId) return null;
-    const response = await fetch(`https://discord.com/api/v10/users/${encodeURIComponent(discordId)}`, {
-        headers: { Authorization: `Bot ${BOT_TOKEN}` }
-    });
-    if (!response.ok) return null;
-    const user = await response.json();
-    return { username: user.username, discriminator: user.discriminator, avatar: user.avatar };
-}
-
 function readBody(request) {
     return new Promise((resolve, reject) => {
         let body = '';
         request.on('data', (chunk) => { body += chunk; if (body.length > 10000) request.destroy(); });
-        request.on('end', () => { try { resolve(JSON.parse(body || '{}')); } catch { reject(new Error('JSON invalide.')); } });
+        request.on('end', () => {
+            try {
+                resolve(JSON.parse(body || '{}'));
+            } catch {
+                reject(new Error('JSON invalide.'));
+            }
+        });
         request.on('error', reject);
     });
 }
 
 async function handleApi(request, response, pathname) {
     const users = readUsers();
+
     if (pathname === '/api/discord/start' && request.method === 'GET') {
-        const sessionUser = users[sessions.get(parseCookies(request).trugosia_session)];
-        if (!sessionUser || !DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) return redirect(response, '/?discord=error');
+        const cookie = parseCookies(request);
+        const sessionUser = users[sessions.get(cookie.trugosia_session)];
+        if (!sessionUser) return authError(response, 'session_expiree');
+        if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) return authError(response, 'oauth_non_configure');
         const state = crypto.randomBytes(24).toString('hex');
         oauthStates.set(state, { identifier: sessionUser.identifier, expiresAt: Date.now() + 300000 });
         const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, response_type: 'code', redirect_uri: DISCORD_REDIRECT_URI, scope: 'identify', state });
+        console.log(`Discord OAuth started for ${sessionUser.identifier} with redirect ${DISCORD_REDIRECT_URI}`);
         return redirect(response, `https://discord.com/oauth2/authorize?${params}`);
     }
+
     if (pathname === '/api/discord/callback' && request.method === 'GET') {
         const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
         const stateData = oauthStates.get(query.get('state'));
         oauthStates.delete(query.get('state'));
-        if (!stateData || stateData.expiresAt < Date.now() || query.get('error')) return redirect(response, '/?discord=error');
-        const discord = await exchangeDiscordCode(query.get('code'));
+        if (!stateData || stateData.expiresAt < Date.now()) return authError(response, 'etat_oauth_expire');
+        if (query.get('error')) return authError(response, `discord_${query.get('error')}`);
+        if (!query.get('code')) return authError(response, 'code_discord_manquant');
+
+        let discord;
+        try {
+            discord = await exchangeDiscordCode(query.get('code'));
+        } catch (error) {
+            console.error(error);
+            return authError(response, 'echange_discord_refuse');
+        }
+
         const linkedUser = users[stateData.identifier];
-        if (!linkedUser) return redirect(response, '/?discord=error');
+        if (!linkedUser) return authError(response, 'compte_trugosia_introuvable');
+
         const alreadyLinked = Object.values(users).some((user) => user.identifier !== linkedUser.identifier && user.discord && user.discord.id === discord.id);
-        if (alreadyLinked) return redirect(response, '/?discord=error');
+        if (alreadyLinked) return authError(response, 'discord_deja_lie');
+
         linkedUser.discord = { id: discord.id, username: discord.username, discriminator: discord.discriminator, avatar: discord.avatar };
         writeUsers(users);
-        return redirect(response, '/?discord=linked');
+        return redirect(response, `${publicSiteUrl()}/?discord=linked`);
     }
+
     if (pathname === '/api/register' && request.method === 'POST') {
         const { identifier, password } = await readBody(request);
         const normalized = String(identifier || '').trim().toLowerCase();
         if (!/^[a-z0-9_.-]{3,32}$/.test(normalized) || String(password || '').length < 6) return sendJson(response, 400, { error: 'Identifiant ou mot de passe invalide.' });
         if (users[normalized]) return sendJson(response, 409, { error: 'Cet identifiant est déjà utilisé.' });
-        const user = { identifier: normalized, passwordHash: await hashPassword(password), createdAt: new Date().toISOString() };
+
+        const user = {
+            identifier: normalized,
+            passwordHash: await hashPassword(password),
+            createdAt: new Date().toISOString(),
+            loginCount: 0,
+            description: '',
+            theme: 'light'
+        };
+
         users[normalized] = user;
         writeUsers(users);
         return createSession(response, user);
     }
+
     if (pathname === '/api/login' && request.method === 'POST') {
         const { identifier, password } = await readBody(request);
         const user = users[String(identifier || '').trim().toLowerCase()];
         if (!user || !(await passwordMatches(String(password || ''), user.passwordHash))) return sendJson(response, 401, { error: 'Identifiant ou mot de passe incorrect.' });
+
+        user.loginCount = Number(user.loginCount || 0) + 1;
+        user.lastLoginAt = new Date().toISOString();
+        writeUsers(users);
         return createSession(response, user);
     }
+
     if (pathname === '/api/account' && request.method === 'GET') {
         const user = users[sessions.get(parseCookies(request).trugosia_session)];
         if (!user) return sendJson(response, 401, { error: 'Non connecté.' });
         return sendJson(response, 200, publicAccount(user, user.discord || null));
     }
+
+    if (pathname === '/api/account/update' && request.method === 'POST') {
+        const token = parseCookies(request).trugosia_session;
+        const user = users[sessions.get(token)];
+        if (!user) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const { description, theme } = await readBody(request);
+        const cleanDescription = String(description || '').trim().slice(0, 240);
+        const cleanTheme = theme === 'dark' ? 'dark' : 'light';
+
+        user.description = cleanDescription;
+        user.theme = cleanTheme;
+        writeUsers(users);
+
+        return sendJson(response, 200, publicAccount(user, user.discord || null));
+    }
+
+    if (pathname === '/api/account/delete' && request.method === 'POST') {
+        const token = parseCookies(request).trugosia_session;
+        const identifier = sessions.get(token);
+        if (!identifier) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        delete users[identifier];
+        sessions.delete(token);
+        writeUsers(users);
+
+        return sendJson(response, 200, { ok: true }, { 'Set-Cookie': 'trugosia_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax' });
+    }
+
     if (pathname === '/api/logout' && request.method === 'POST') {
         sessions.delete(parseCookies(request).trugosia_session);
         return sendJson(response, 200, { ok: true }, { 'Set-Cookie': 'trugosia_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax' });
     }
+
     sendJson(response, 404, { error: 'Route introuvable.' });
 }
 
