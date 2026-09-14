@@ -70,14 +70,26 @@ function sendJson(response, status, data, headers = {}) {
 }
 
 function publicAccount(user, discord = null) {
+    const ratings = user.picnote && Array.isArray(user.picnote.ratings) ? user.picnote.ratings : [];
     return {
         identifier: user.identifier,
         createdAt: user.createdAt,
         loginCount: Number(user.loginCount || 0),
         description: typeof user.description === 'string' ? user.description : '',
         theme: user.theme === 'dark' ? 'dark' : 'light',
+        avatar: typeof user.avatar === 'string' ? user.avatar : '',
+        backgroundColor: typeof user.backgroundColor === 'string' ? user.backgroundColor : '#f6f8f5',
+        picnoteRatings: ratings,
         discord
     };
+}
+
+function ensurePicnote(user) {
+    user.picnote = user.picnote || {};
+    user.picnote.photos = Array.isArray(user.picnote.photos) ? user.picnote.photos : [];
+    user.picnote.seen = Array.isArray(user.picnote.seen) ? user.picnote.seen : [];
+    user.picnote.ratings = Array.isArray(user.picnote.ratings) ? user.picnote.ratings : [];
+    return user.picnote;
 }
 
 function normalizeIdentifier(value) {
@@ -95,13 +107,16 @@ function userPresence(identifier) {
     };
 }
 
-function publicContact(user, identifier) {
+function publicContact(users, identifier) {
+    const contact = users[identifier] || {};
     return {
         identifier,
         online: onlineUsers.has(identifier),
         typing: Boolean((presenceState.get(identifier) || {}).typing),
         voice: Boolean((presenceState.get(identifier) || {}).voice),
-        inChat: Boolean((presenceState.get(identifier) || {}).inChat)
+        inChat: Boolean((presenceState.get(identifier) || {}).inChat),
+        avatar: typeof contact.avatar === 'string' ? contact.avatar : '',
+        description: typeof contact.description === 'string' ? contact.description : ''
     };
 }
 
@@ -139,7 +154,7 @@ async function exchangeDiscordCode(code) {
 function readBody(request) {
     return new Promise((resolve, reject) => {
         let body = '';
-        request.on('data', (chunk) => { body += chunk; if (body.length > 10000) request.destroy(); });
+        request.on('data', (chunk) => { body += chunk; if (body.length > 2000000) request.destroy(); });
         request.on('end', () => {
             try {
                 resolve(JSON.parse(body || '{}'));
@@ -206,6 +221,9 @@ async function handleApi(request, response, pathname) {
             loginCount: 0,
             description: '',
             theme: 'light',
+            avatar: '',
+            backgroundColor: '#f6f8f5',
+            picnote: { photos: [], seen: [], ratings: [] },
             contacts: [],
             chats: {}
         };
@@ -226,6 +244,9 @@ async function handleApi(request, response, pathname) {
         user.lastLoginAt = new Date().toISOString();
         user.contacts = Array.isArray(user.contacts) ? user.contacts : [];
         user.chats = user.chats || {};
+        user.avatar = typeof user.avatar === 'string' ? user.avatar : '';
+        user.backgroundColor = typeof user.backgroundColor === 'string' ? user.backgroundColor : '#f6f8f5';
+        ensurePicnote(user);
         writeUsers(users);
         onlineUsers.add(user.identifier);
         presenceState.set(user.identifier, { typing: false, voice: false, inChat: false });
@@ -238,17 +259,75 @@ async function handleApi(request, response, pathname) {
         return sendJson(response, 200, publicAccount(user, user.discord || null));
     }
 
+    if (pathname === '/api/picnote/feed' && request.method === 'GET') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const currentPicnote = ensurePicnote(currentUser);
+        const seen = new Set(currentPicnote.seen);
+        const photos = Object.values(users)
+            .filter((user) => user.identifier !== currentUser.identifier)
+            .flatMap((user) => ensurePicnote(user).photos.map((photo) => ({
+                ...photo,
+                owner: user.identifier,
+                ownerAvatar: typeof user.avatar === 'string' ? user.avatar : ''
+            })))
+            .filter((photo) => !seen.has(photo.id));
+
+        return sendJson(response, 200, { photos });
+    }
+
+    if (pathname === '/api/picnote/photo' && request.method === 'POST') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const { image } = await readBody(request);
+        if (typeof image !== 'string' || !/^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(image) || image.length > 1500000) {
+            return sendJson(response, 400, { error: 'Photo invalide ou trop volumineuse.' });
+        }
+
+        const picnote = ensurePicnote(currentUser);
+        picnote.photos.unshift({ id: crypto.randomUUID(), image, createdAt: new Date().toISOString() });
+        writeUsers(users);
+        return sendJson(response, 201, { ok: true });
+    }
+
+    if (pathname === '/api/picnote/rate' && request.method === 'POST') {
+        const token = parseCookies(request).trugosia_session;
+        const currentUser = users[sessions.get(token)];
+        if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
+
+        const { photoId, action, score } = await readBody(request);
+        const photoOwner = Object.values(users).find((user) => ensurePicnote(user).photos.some((photo) => photo.id === photoId));
+        if (!photoOwner || photoOwner.identifier === currentUser.identifier) return sendJson(response, 404, { error: 'Photo introuvable.' });
+
+        const currentPicnote = ensurePicnote(currentUser);
+        if (!currentPicnote.seen.includes(photoId)) currentPicnote.seen.push(photoId);
+        const normalizedScore = Number.isFinite(Number(score)) ? Math.max(0, Math.min(20, Math.round(Number(score)))) : null;
+        if (normalizedScore !== null) {
+            ensurePicnote(photoOwner).ratings.push({ id: crypto.randomUUID(), photoId, from: currentUser.identifier, score: normalizedScore, createdAt: new Date().toISOString() });
+        }
+        writeUsers(users);
+        return sendJson(response, 200, { ok: true, action: action === 'like' ? 'like' : 'dislike', score: normalizedScore });
+    }
+
     if (pathname === '/api/account/update' && request.method === 'POST') {
         const token = parseCookies(request).trugosia_session;
         const user = users[sessions.get(token)];
         if (!user) return sendJson(response, 401, { error: 'Non connecté.' });
 
-        const { description, theme } = await readBody(request);
+        const { description, theme, avatar, backgroundColor } = await readBody(request);
         const cleanDescription = String(description || '').trim().slice(0, 240);
         const cleanTheme = theme === 'dark' ? 'dark' : 'light';
+        const cleanAvatar = typeof avatar === 'string' && /^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(avatar) && avatar.length <= 1500000 ? avatar : '';
+        const cleanBackground = typeof backgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(backgroundColor) ? backgroundColor : '#f6f8f5';
 
         user.description = cleanDescription;
         user.theme = cleanTheme;
+        user.avatar = cleanAvatar;
+        user.backgroundColor = cleanBackground;
         writeUsers(users);
 
         return sendJson(response, 200, publicAccount(user, user.discord || null));
@@ -294,6 +373,7 @@ async function handleApi(request, response, pathname) {
                     identifier,
                     online: onlineUsers.has(identifier),
                     description: typeof user.description === 'string' ? user.description : '',
+                    avatar: typeof user.avatar === 'string' ? user.avatar : '',
                     inContacts: Array.isArray(currentUser.contacts) && currentUser.contacts.includes(identifier)
                 };
             });
@@ -323,7 +403,7 @@ async function handleApi(request, response, pathname) {
         if (!peer.contacts.includes(currentUser.identifier)) peer.contacts.push(currentUser.identifier);
 
         writeUsers(users);
-        return sendJson(response, 200, { ok: true, contacts: currentUser.contacts.map((member) => publicContact(currentUser, member)) });
+        return sendJson(response, 200, { ok: true, contacts: currentUser.contacts.map((member) => publicContact(users, member)) });
     }
 
     if (pathname === '/api/contacts' && request.method === 'GET') {
@@ -332,7 +412,7 @@ async function handleApi(request, response, pathname) {
         if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
 
         const contacts = (Array.isArray(currentUser.contacts) ? currentUser.contacts : [])
-            .map((identifier) => publicContact(currentUser, identifier))
+            .map((identifier) => publicContact(users, identifier))
             .filter((entry) => entry.identifier && entry.identifier !== currentUser.identifier);
 
         return sendJson(response, 200, contacts);
@@ -408,7 +488,7 @@ async function handleApi(request, response, pathname) {
         }));
 
         return sendJson(response, 200, {
-            peer: publicContact(currentUser, target),
+            peer: publicContact(users, target),
             messages
         });
     }

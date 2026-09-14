@@ -59,7 +59,7 @@
                 <section class="dashboard-panel is-active" data-panel="profile">
                     <div class="panel-card profile-card">
                         <div class="profile-head">
-                            <div class="profile-avatar">T</div>
+                            <div class="profile-avatar" id="profile-avatar">T</div>
                             <div>
                                 <p class="profile-caption">Compte</p>
                                 <h2 id="profile-name">Utilisateur</h2>
@@ -76,8 +76,23 @@
                             <textarea id="profile-description" rows="5" maxlength="240" placeholder="Décris toi en quelques mots..."></textarea>
                         </label>
 
+                        <div class="profile-customization">
+                            <label class="field" for="profile-avatar-upload">
+                                <span>Photo de profil</span>
+                                <input id="profile-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                            </label>
+                            <label class="color-field" for="background-color">
+                                <span>Couleur du site</span>
+                                <input id="background-color" type="color" value="#f6f8f5">
+                            </label>
+                        </div>
+
                         <button id="save-profile-button" class="primary-button secondary-cta" type="button">Enregistrer la description</button>
                         <p id="profile-status" class="status-text" aria-live="polite"></p>
+                        <div class="profile-ratings">
+                            <h3>Notes Picnote reçues</h3>
+                            <div id="profile-ratings-list" class="ratings-list"></div>
+                        </div>
                     </div>
                 </section>
 
@@ -103,6 +118,7 @@
                             </aside>
                             <div class="chat-panel">
                                 <div id="chat-header" class="chat-header">
+                                    <button id="close-chat-button" class="chat-back-button" type="button" aria-label="Fermer la conversation">←</button>
                                     <span>Sélectionnez un contact</span>
                                 </div>
                                 <div id="chat-messages" class="chat-messages"></div>
@@ -118,6 +134,32 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <section class="dashboard-panel" data-panel="picnote">
+                    <div class="panel-card picnote-card">
+                        <div class="picnote-heading">
+                            <div>
+                                <p class="profile-caption">Découvrir les membres</p>
+                                <h3>Picnote</h3>
+                            </div>
+                            <span id="picnote-counter" class="picnote-counter">0 photo</span>
+                        </div>
+                        <div id="picnote-stage" class="picnote-stage">
+                            <div class="empty-state">Les photos arrivent...</div>
+                        </div>
+                        <div id="picnote-score-area" class="picnote-score-area is-hidden">
+                            <label for="picnote-score">Ta note : <strong id="picnote-score-value">10</strong>/20</label>
+                            <input id="picnote-score" type="range" min="0" max="20" value="10">
+                            <button id="picnote-submit-score" class="primary-button" type="button">Envoyer la note</button>
+                        </div>
+                        <div class="picnote-actions">
+                            <button id="picnote-skip-button" class="secondary-button" type="button">Passer</button>
+                            <label class="upload-button" for="picnote-upload">📷 Publier une photo</label>
+                            <input id="picnote-upload" type="file" accept="image/*" capture="environment" hidden>
+                        </div>
+                        <p id="picnote-status" class="status-text" aria-live="polite"></p>
                     </div>
                 </section>
 
@@ -157,6 +199,10 @@
                 <button class="nav-item" type="button" data-panel="chatpro" aria-label="ChatPro">
                     <span class="nav-emoji" aria-hidden="true">💬</span>
                     <span>ChatPro</span>
+                </button>
+                <button class="nav-item" type="button" data-panel="picnote" aria-label="Picnote">
+                    <span class="nav-emoji" aria-hidden="true">📸</span>
+                    <span>Picnote</span>
                 </button>
                 <button class="nav-item" type="button" data-panel="discord" aria-label="Discord">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2.5a2.5 2.5 0 0 0-2.5 2.5v14A2.5 2.5 0 0 0 7 21.5h10a2.5 2.5 0 0 0 2.5-2.5V5A2.5 2.5 0 0 0 17 2.5zm0 2h10a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5zm3.5 3h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1zm0 5h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-.5a1 1 0 0 1 1-1z"/></svg>
