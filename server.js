@@ -154,7 +154,7 @@ async function exchangeDiscordCode(code) {
 function readBody(request) {
     return new Promise((resolve, reject) => {
         let body = '';
-        request.on('data', (chunk) => { body += chunk; if (body.length > 2000000) request.destroy(); });
+        request.on('data', (chunk) => { body += chunk; if (body.length > 12000000) request.destroy(); });
         request.on('end', () => {
             try {
                 resolve(JSON.parse(body || '{}'));
@@ -267,7 +267,6 @@ async function handleApi(request, response, pathname) {
         const currentPicnote = ensurePicnote(currentUser);
         const seen = new Set(currentPicnote.seen);
         const photos = Object.values(users)
-            .filter((user) => user.identifier !== currentUser.identifier)
             .flatMap((user) => ensurePicnote(user).photos.map((photo) => ({
                 ...photo,
                 owner: user.identifier,
@@ -284,8 +283,8 @@ async function handleApi(request, response, pathname) {
         if (!currentUser) return sendJson(response, 401, { error: 'Non connecté.' });
 
         const { image } = await readBody(request);
-        if (typeof image !== 'string' || !/^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(image) || image.length > 1500000) {
-            return sendJson(response, 400, { error: 'Photo invalide ou trop volumineuse.' });
+        if (typeof image !== 'string' || !/^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(image) || image.length > 11000000) {
+            return sendJson(response, 400, { error: 'Photo invalide ou trop volumineuse. La limite est de 8 Mo.' });
         }
 
         const picnote = ensurePicnote(currentUser);
@@ -301,7 +300,7 @@ async function handleApi(request, response, pathname) {
 
         const { photoId, action, score } = await readBody(request);
         const photoOwner = Object.values(users).find((user) => ensurePicnote(user).photos.some((photo) => photo.id === photoId));
-        if (!photoOwner || photoOwner.identifier === currentUser.identifier) return sendJson(response, 404, { error: 'Photo introuvable.' });
+        if (!photoOwner) return sendJson(response, 404, { error: 'Photo introuvable.' });
 
         const currentPicnote = ensurePicnote(currentUser);
         if (!currentPicnote.seen.includes(photoId)) currentPicnote.seen.push(photoId);

@@ -274,7 +274,7 @@ async function loadPicnote() {
 function readPicnoteImage(file) {
     return new Promise((resolve, reject) => {
         if (!file) return resolve(null);
-        if (file.size > 1000000) return reject(new Error('La photo doit faire moins de 1 Mo.'));
+        if (file.size > 8000000) return reject(new Error('La photo doit faire moins de 8 Mo.'));
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
         reader.onerror = () => reject(new Error('Impossible de lire cette photo.'));
