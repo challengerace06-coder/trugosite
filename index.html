@@ -28,7 +28,10 @@
                     </div>
                     <div class="field">
                         <label for="login-password">Mot de passe</label>
-                        <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="votre mot de passe" required>
+                        <div class="password-field">
+                            <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="votre mot de passe" required>
+                            <button class="password-toggle" type="button" data-password-target="login-password" aria-label="Afficher le mot de passe" aria-pressed="false">👁</button>
+                        </div>
                     </div>
                     <button class="primary-button" type="submit">Entrer dans Trugosia <span aria-hidden="true">→</span></button>
                 </form>
@@ -40,7 +43,10 @@
                     </div>
                     <div class="field">
                         <label for="register-password">Choisissez un mot de passe</label>
-                        <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="6 caractères minimum" minlength="6" required>
+                        <div class="password-field">
+                            <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="6 caractères minimum" minlength="6" required>
+                            <button class="password-toggle" type="button" data-password-target="register-password" aria-label="Afficher le mot de passe" aria-pressed="false">👁</button>
+                        </div>
                     </div>
                     <button class="primary-button" type="submit">Créer mon compte <span aria-hidden="true">→</span></button>
                 </form>

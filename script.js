@@ -31,6 +31,7 @@ const sendMessageButton = document.getElementById('send-message-button');
 const voiceButton = document.getElementById('voice-button');
 const imageUpload = document.getElementById('image-upload');
 const closeChatButton = document.getElementById('close-chat-button');
+const passwordToggles = document.querySelectorAll('.password-toggle');
 const profileRatingsList = document.getElementById('profile-ratings-list');
 const picnoteStage = document.getElementById('picnote-stage');
 const picnoteCounter = document.getElementById('picnote-counter');
@@ -530,6 +531,17 @@ tabs.forEach((tab) => {
         loginForm.classList.toggle('is-hidden', !isLogin);
         registerForm.classList.toggle('is-hidden', isLogin);
         showMessage('');
+    });
+});
+
+passwordToggles.forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+        const passwordInput = document.getElementById(toggle.dataset.passwordTarget);
+        const isVisible = passwordInput.type === 'text';
+        passwordInput.type = isVisible ? 'password' : 'text';
+        toggle.setAttribute('aria-pressed', String(!isVisible));
+        toggle.setAttribute('aria-label', isVisible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+        toggle.textContent = isVisible ? '👁' : '🙈';
     });
 });
 

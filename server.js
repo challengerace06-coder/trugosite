@@ -11,6 +11,8 @@ const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `http://localhost:${PORT}/api/discord/callback`;
 const DATA_FILE = path.join(__dirname, 'data', 'users.json');
+const DATA_BACKUP_FILE = path.join(__dirname, 'data', 'users.backup.json');
+const DATA_TEMP_FILE = path.join(__dirname, 'data', 'users.tmp.json');
 const sessions = new Map();
 const oauthStates = new Map();
 const onlineUsers = new Set();
@@ -30,18 +32,37 @@ function loadEnvFile() {
 }
 
 function readUsers() {
-    if (!fs.existsSync(DATA_FILE)) return {};
-    try {
-        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    } catch (error) {
-        console.warn('Le fichier users.json est invalide. Reset en cours.');
-        return {};
+    const readJson = (filePath) => {
+        if (!fs.existsSync(filePath)) return null;
+        try {
+            const users = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            return users && typeof users === 'object' && !Array.isArray(users) ? users : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const users = readJson(DATA_FILE);
+    if (users) return users;
+
+    const backupUsers = readJson(DATA_BACKUP_FILE);
+    if (backupUsers) {
+        console.warn('users.json était invalide. Restauration de la sauvegarde.');
+        fs.copyFileSync(DATA_BACKUP_FILE, DATA_FILE);
+        return backupUsers;
     }
+
+    if (fs.existsSync(DATA_FILE)) console.warn('Aucune sauvegarde de comptes valide trouvée.');
+    return {};
 }
 
 function writeUsers(users) {
     fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(users, null, 2));
+    const serialized = `${JSON.stringify(users, null, 2)}\n`;
+    fs.writeFileSync(DATA_TEMP_FILE, serialized, 'utf8');
+    if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, DATA_BACKUP_FILE);
+    fs.renameSync(DATA_TEMP_FILE, DATA_FILE);
+    fs.copyFileSync(DATA_FILE, DATA_BACKUP_FILE);
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {

@@ -64,6 +64,10 @@ h1 { margin: 0; font-size: clamp(48px, 10vw, 72px); font-weight: 400; }
 label { font: 700 12px Arial, sans-serif; }
 label span { color: var(--muted); font-weight: 400; }
 input, textarea { width: 100%; padding: 13px 14px; border: 1px solid var(--line); border-radius: 3px; outline: 0; color: var(--ink); background: rgba(255,255,255,0.28); font-size: 15px; transition: border-color .2s, box-shadow .2s; }
+.password-field { position: relative; }
+.password-field input { padding-right: 48px; }
+.password-toggle { position: absolute; top: 50%; right: 8px; display: grid; place-items: center; width: 34px; height: 34px; transform: translateY(-50%); border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: 17px; }
+.password-toggle:hover, .password-toggle[aria-pressed="true"] { color: var(--ink); background: rgba(237, 106, 69, .1); }
 input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(237, 106, 69, .13); }
 input::placeholder, textarea::placeholder { color: #a3afaa; }
 .primary-button, .secondary-button, .danger-button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 14px 16px; border: 0; border-radius: 8px; font: 700 13px Arial, sans-serif; transition: background .2s, transform .2s; }
