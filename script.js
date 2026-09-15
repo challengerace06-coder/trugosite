@@ -66,6 +66,7 @@ function moveTabIndicator(tab) {
     if (!tabIndicator || !tab) return;
     tabIndicator.style.width = `${tab.offsetWidth}px`;
     tabIndicator.style.transform = `translateX(${tab.offsetLeft}px)`;
+    tabIndicator.dataset.mode = tab.dataset.mode;
 }
 
 function setActivePanel(panelName) {
@@ -546,18 +547,27 @@ tabs.forEach((tab) => {
 
 moveTabIndicator(document.querySelector('.tab.is-active'));
 
-let tabDragStart = null;
-tabsContainer.addEventListener('pointerdown', (event) => {
-    tabDragStart = event.clientX;
-    tabsContainer.setPointerCapture(event.pointerId);
+let tabDrag = null;
+tabIndicator.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    tabIndicator.setPointerCapture(event.pointerId);
+    tabDrag = { startX: event.clientX, startOffset: tabIndicator.offsetLeft, currentOffset: tabIndicator.offsetLeft };
+    tabIndicator.classList.add('is-dragging');
 });
-tabsContainer.addEventListener('pointerup', (event) => {
-    if (tabDragStart === null) return;
-    const moved = event.clientX - tabDragStart;
-    tabDragStart = null;
-    if (Math.abs(moved) < 35) return;
-    const targetMode = moved < 0 ? 'login' : 'register';
-    document.querySelector(`.tab[data-mode="${targetMode}"]`).click();
+tabIndicator.addEventListener('pointermove', (event) => {
+    if (!tabDrag) return;
+    const maxOffset = tabsContainer.offsetWidth - tabIndicator.offsetWidth;
+    const nextOffset = Math.max(0, Math.min(maxOffset, tabDrag.startOffset + event.clientX - tabDrag.startX));
+    tabDrag.currentOffset = nextOffset;
+    tabIndicator.style.transform = `translateX(${nextOffset}px)`;
+});
+tabIndicator.addEventListener('pointerup', () => {
+    if (!tabDrag) return;
+    const center = tabDrag.currentOffset + tabIndicator.offsetWidth / 2;
+    const target = [...tabs].reduce((closest, tab) => Math.abs((tab.offsetLeft + tab.offsetWidth / 2) - center) < Math.abs((closest.offsetLeft + closest.offsetWidth / 2) - center) ? tab : closest);
+    tabDrag = null;
+    tabIndicator.classList.remove('is-dragging');
+    target.click();
 });
 
 googleLoginButton.addEventListener('click', () => {

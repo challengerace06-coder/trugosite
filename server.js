@@ -9,10 +9,8 @@ const PORT = Number(process.env.PORT || 3000);
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `http://localhost:${PORT}/api/discord/callback`;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${PORT}/api/google/callback`;
 const DATA_FILE = path.join(__dirname, 'data', 'users.json');
 const DATA_BACKUP_FILE = path.join(__dirname, 'data', 'users.backup.json');
 const DATA_TEMP_FILE = path.join(__dirname, 'data', 'users.tmp.json');
@@ -148,18 +146,33 @@ function publicSiteUrl() {
     return process.env.PUBLIC_SITE_URL || `http://localhost:${PORT}`;
 }
 
-function authError(response, reason) {
-    console.error(`Discord OAuth error: ${reason}`);
-    return redirect(response, `${publicSiteUrl()}/?discord=error&reason=${encodeURIComponent(reason)}`);
+function requestSiteUrl(request) {
+    if (process.env.PUBLIC_SITE_URL) return process.env.PUBLIC_SITE_URL.replace(/\/$/, '');
+    const forwardedProto = request.headers['x-forwarded-proto'];
+    const protocol = forwardedProto ? String(forwardedProto).split(',')[0].trim() : 'http';
+    return `${protocol}://${request.headers.host}`;
 }
 
-async function exchangeDiscordCode(code) {
+function discordRedirectUri(request) {
+    return process.env.DISCORD_REDIRECT_URI || `${requestSiteUrl(request)}/api/discord/callback`;
+}
+
+function googleRedirectUri(request) {
+    return process.env.GOOGLE_REDIRECT_URI || `${requestSiteUrl(request)}/api/google/callback`;
+}
+
+function authError(response, reason, request) {
+    console.error(`Discord OAuth error: ${reason}`);
+    return redirect(response, `${requestSiteUrl(request)}/?discord=error&reason=${encodeURIComponent(reason)}`);
+}
+
+async function exchangeDiscordCode(code, redirectUri) {
     const body = new URLSearchParams({
         client_id: DISCORD_CLIENT_ID,
         client_secret: DISCORD_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code,
-        redirect_uri: DISCORD_REDIRECT_URI
+        redirect_uri: redirectUri
     });
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
         method: 'POST',
@@ -175,11 +188,11 @@ async function exchangeDiscordCode(code) {
     return userResponse.json();
 }
 
-async function exchangeGoogleCode(code) {
+async function exchangeGoogleCode(code, redirectUri) {
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, code, grant_type: 'authorization_code', redirect_uri: GOOGLE_REDIRECT_URI })
+        body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, code, grant_type: 'authorization_code', redirect_uri: redirectUri })
     });
     if (!tokenResponse.ok) throw new Error('Google OAuth token exchange failed.');
     const tokens = await tokenResponse.json();
@@ -209,12 +222,13 @@ async function handleApi(request, response, pathname) {
     if (pathname === '/api/discord/start' && request.method === 'GET') {
         const cookie = parseCookies(request);
         const sessionUser = users[sessions.get(cookie.trugosia_session)];
-        if (!sessionUser) return authError(response, 'session_expiree');
-        if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) return authError(response, 'oauth_non_configure');
+        if (!sessionUser) return authError(response, 'session_expiree', request);
+        if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) return authError(response, 'oauth_non_configure', request);
+        const redirectUri = discordRedirectUri(request);
         const state = crypto.randomBytes(24).toString('hex');
         oauthStates.set(state, { identifier: sessionUser.identifier, expiresAt: Date.now() + 300000 });
-        const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, response_type: 'code', redirect_uri: DISCORD_REDIRECT_URI, scope: 'identify', state });
-        console.log(`Discord OAuth started for ${sessionUser.identifier} with redirect ${DISCORD_REDIRECT_URI}`);
+        const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, response_type: 'code', redirect_uri: redirectUri, scope: 'identify', state });
+        console.log(`Discord OAuth started for ${sessionUser.identifier} with redirect ${redirectUri}`);
         return redirect(response, `https://discord.com/oauth2/authorize?${params}`);
     }
 
@@ -222,34 +236,35 @@ async function handleApi(request, response, pathname) {
         const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
         const stateData = oauthStates.get(query.get('state'));
         oauthStates.delete(query.get('state'));
-        if (!stateData || stateData.expiresAt < Date.now()) return authError(response, 'etat_oauth_expire');
-        if (query.get('error')) return authError(response, `discord_${query.get('error')}`);
-        if (!query.get('code')) return authError(response, 'code_discord_manquant');
+        if (!stateData || stateData.expiresAt < Date.now()) return authError(response, 'etat_oauth_expire', request);
+        if (query.get('error')) return authError(response, `discord_${query.get('error')}`, request);
+        if (!query.get('code')) return authError(response, 'code_discord_manquant', request);
 
         let discord;
         try {
-            discord = await exchangeDiscordCode(query.get('code'));
+            discord = await exchangeDiscordCode(query.get('code'), discordRedirectUri(request));
         } catch (error) {
             console.error(error);
-            return authError(response, 'echange_discord_refuse');
+            return authError(response, 'echange_discord_refuse', request);
         }
 
         const linkedUser = users[stateData.identifier];
-        if (!linkedUser) return authError(response, 'compte_trugosia_introuvable');
+        if (!linkedUser) return authError(response, 'compte_trugosia_introuvable', request);
 
         const alreadyLinked = Object.values(users).some((user) => user.identifier !== linkedUser.identifier && user.discord && user.discord.id === discord.id);
-        if (alreadyLinked) return authError(response, 'discord_deja_lie');
+        if (alreadyLinked) return authError(response, 'discord_deja_lie', request);
 
         linkedUser.discord = { id: discord.id, username: discord.username, discriminator: discord.discriminator, avatar: discord.avatar };
         writeUsers(users);
-        return redirect(response, `${publicSiteUrl()}/?discord=linked`);
+        return redirect(response, `${requestSiteUrl(request)}/?discord=linked`);
     }
 
     if (pathname === '/api/google/start' && request.method === 'GET') {
-        if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_non_configure`);
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return redirect(response, `${requestSiteUrl(request)}/?google=error&reason=google_non_configure`);
+        const redirectUri = googleRedirectUri(request);
         const state = crypto.randomBytes(24).toString('hex');
         oauthStates.set(`google:${state}`, { expiresAt: Date.now() + 300000 });
-        const params = new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, response_type: 'code', redirect_uri: GOOGLE_REDIRECT_URI, scope: 'openid email profile', state });
+        const params = new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, response_type: 'code', redirect_uri: redirectUri, scope: 'openid email profile', state });
         return redirect(response, `https://accounts.google.com/o/oauth2/v2/auth?${params}`);
     }
 
@@ -257,15 +272,15 @@ async function handleApi(request, response, pathname) {
         const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
         const stateData = oauthStates.get(`google:${query.get('state')}`);
         oauthStates.delete(`google:${query.get('state')}`);
-        if (!stateData || stateData.expiresAt < Date.now()) return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_state_expire`);
-        if (query.get('error') || !query.get('code')) return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_refuse`);
+        if (!stateData || stateData.expiresAt < Date.now()) return redirect(response, `${requestSiteUrl(request)}/?google=error&reason=google_state_expire`);
+        if (query.get('error') || !query.get('code')) return redirect(response, `${requestSiteUrl(request)}/?google=error&reason=google_refuse`);
 
         let googleUser;
         try {
-            googleUser = await exchangeGoogleCode(query.get('code'));
+            googleUser = await exchangeGoogleCode(query.get('code'), googleRedirectUri(request));
         } catch (error) {
             console.error(error);
-            return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_exchange`);
+            return redirect(response, `${requestSiteUrl(request)}/?google=error&reason=google_exchange`);
         }
 
         const baseIdentifier = normalizeIdentifier((googleUser.email || googleUser.sub || 'google').split('@')[0]).replace(/[^a-z0-9_.-]/g, '').slice(0, 25) || 'google';
@@ -288,7 +303,7 @@ async function handleApi(request, response, pathname) {
         sessions.set(token, user.identifier);
         onlineUsers.add(user.identifier);
         presenceState.set(user.identifier, { typing: false, voice: false, inChat: false });
-        return redirect(response, `${publicSiteUrl()}/?google=linked`, { 'Set-Cookie': `trugosia_session=${token}; HttpOnly; Path=/; SameSite=Lax` });
+        return redirect(response, `${requestSiteUrl(request)}/?google=linked`, { 'Set-Cookie': `trugosia_session=${token}; HttpOnly; Path=/; SameSite=Lax` });
     }
 
     if (pathname === '/api/register' && request.method === 'POST') {

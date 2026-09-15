@@ -61,7 +61,9 @@ h1 { margin: 0; font-size: clamp(48px, 10vw, 72px); font-weight: 400; }
 .tabs { position: relative; display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 27px; touch-action: pan-y; }
 .tab { position: relative; z-index: 1; padding: 17px 0 14px; border: 0; color: var(--muted); background: transparent; font: 700 13px Arial, sans-serif; }
 .tab.is-active { color: var(--ink); }
-.tab-indicator { position: absolute; bottom: -1px; left: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); transition: transform .25s ease, width .25s ease; pointer-events: none; }
+.tab-indicator { position: absolute; z-index: 2; top: 7px; bottom: 7px; left: 0; height: auto; border: 1px solid rgba(255, 255, 255, .7); border-radius: 14px; background: linear-gradient(135deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .2)); box-shadow: 0 8px 22px rgba(88, 105, 145, .18), inset 0 1px 0 rgba(255, 255, 255, .8); backdrop-filter: blur(14px) saturate(145%); -webkit-backdrop-filter: blur(14px) saturate(145%); transition: transform .25s ease, width .25s ease; cursor: grab; touch-action: none; }
+.tab-indicator::after { position: absolute; top: 4px; right: 16%; left: 16%; height: 1px; border-radius: 50%; background: rgba(255, 255, 255, .9); content: ''; }
+.tab-indicator.is-dragging { transition: none; cursor: grabbing; box-shadow: 0 12px 28px rgba(88, 105, 145, .3), inset 0 1px 0 rgba(255, 255, 255, .9); }
 .google-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--white); font: 700 13px Arial, sans-serif; }
 .google-button:hover { border-color: var(--accent); background: rgba(255, 255, 255, .7); }
 .google-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #4285f4; font: 700 15px Arial, sans-serif; }
