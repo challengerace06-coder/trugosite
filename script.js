@@ -32,6 +32,9 @@ const voiceButton = document.getElementById('voice-button');
 const imageUpload = document.getElementById('image-upload');
 const closeChatButton = document.getElementById('close-chat-button');
 const passwordToggles = document.querySelectorAll('.password-toggle');
+const googleLoginButton = document.getElementById('google-login-button');
+const tabsContainer = document.querySelector('.tabs');
+const tabIndicator = document.querySelector('.tab-indicator');
 const profileRatingsList = document.getElementById('profile-ratings-list');
 const picnoteStage = document.getElementById('picnote-stage');
 const picnoteCounter = document.getElementById('picnote-counter');
@@ -57,6 +60,12 @@ const state = {
 function showMessage(message, type = '') {
     formMessage.textContent = message;
     formMessage.className = `form-message ${type}`;
+}
+
+function moveTabIndicator(tab) {
+    if (!tabIndicator || !tab) return;
+    tabIndicator.style.width = `${tab.offsetWidth}px`;
+    tabIndicator.style.transform = `translateX(${tab.offsetLeft}px)`;
 }
 
 function setActivePanel(panelName) {
@@ -530,8 +539,29 @@ tabs.forEach((tab) => {
         });
         loginForm.classList.toggle('is-hidden', !isLogin);
         registerForm.classList.toggle('is-hidden', isLogin);
+        moveTabIndicator(tab);
         showMessage('');
     });
+});
+
+moveTabIndicator(document.querySelector('.tab.is-active'));
+
+let tabDragStart = null;
+tabsContainer.addEventListener('pointerdown', (event) => {
+    tabDragStart = event.clientX;
+    tabsContainer.setPointerCapture(event.pointerId);
+});
+tabsContainer.addEventListener('pointerup', (event) => {
+    if (tabDragStart === null) return;
+    const moved = event.clientX - tabDragStart;
+    tabDragStart = null;
+    if (Math.abs(moved) < 35) return;
+    const targetMode = moved < 0 ? 'login' : 'register';
+    document.querySelector(`.tab[data-mode="${targetMode}"]`).click();
+});
+
+googleLoginButton.addEventListener('click', () => {
+    window.location.href = '/api/google/start';
 });
 
 passwordToggles.forEach((toggle) => {
@@ -693,6 +723,17 @@ if (query.get('discord') === 'error') {
         echange_discord_refuse: 'Discord a refusé la liaison. Vérifiez la Redirect URI et les identifiants OAuth2.',
         discord_deja_lie: 'Ce compte Discord est déjà lié à un autre compte Trugosia.'
     }[query.get('reason')] || 'La liaison Discord a échoué. Vérifiez la configuration OAuth2.';
+    showMessage(reason, 'error');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+if (query.get('google') === 'error') {
+    const reason = {
+        google_non_configure: 'La connexion Google doit encore être configurée dans les variables secrètes du serveur.',
+        google_state_expire: 'La tentative Google a expiré. Recommence la connexion.',
+        google_refuse: 'Google a refusé la connexion.',
+        google_exchange: 'Google n’a pas pu confirmer la connexion.'
+    }[query.get('reason')] || 'La connexion Google a échoué.';
     showMessage(reason, 'error');
     window.history.replaceState({}, document.title, window.location.pathname);
 }

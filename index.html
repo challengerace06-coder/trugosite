@@ -19,6 +19,7 @@
                 <div class="tabs" role="tablist" aria-label="Authentification">
                     <button class="tab is-active" type="button" role="tab" aria-selected="true" data-mode="login">Se connecter</button>
                     <button class="tab" type="button" role="tab" aria-selected="false" data-mode="register">Créer un compte</button>
+                    <span class="tab-indicator" aria-hidden="true"></span>
                 </div>
 
                 <form id="login-form" class="auth-form">
@@ -34,6 +35,7 @@
                         </div>
                     </div>
                     <button class="primary-button" type="submit">Entrer dans Trugosia <span aria-hidden="true">→</span></button>
+                    <button id="google-login-button" class="google-button" type="button"><span class="google-mark">G</span> Continuer avec Google</button>
                 </form>
 
                 <form id="register-form" class="auth-form is-hidden">
@@ -171,7 +173,8 @@
 
                 <section class="dashboard-panel" data-panel="discord">
                     <div class="panel-card">
-                        <h3>Discord</h3>
+                        <h3>Trugo +</h3>
+                        <p class="profile-caption">Connexion sociale</p>
                         <p id="discord-state" class="muted-text">Aucun compte Discord associé.</p>
                         <div id="discord-user-card" class="discord-user-card"></div>
                         <a id="discord-link" class="discord-link" href="/api/discord/start">Connecter mon compte Trugosia à Discord</a>
@@ -210,9 +213,9 @@
                     <span class="nav-emoji" aria-hidden="true">📸</span>
                     <span>Picnote</span>
                 </button>
-                <button class="nav-item" type="button" data-panel="discord" aria-label="Discord">
+                <button class="nav-item" type="button" data-panel="discord" aria-label="Trugo plus">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2.5a2.5 2.5 0 0 0-2.5 2.5v14A2.5 2.5 0 0 0 7 21.5h10a2.5 2.5 0 0 0 2.5-2.5V5A2.5 2.5 0 0 0 17 2.5zm0 2h10a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5zm3.5 3h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1zm0 5h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-.5a1 1 0 0 1 1-1z"/></svg>
-                    <span>Discord</span>
+                    <span>Trugo +</span>
                 </button>
                 <button class="nav-item" type="button" data-panel="settings" aria-label="Paramètres">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.62.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.18l-2.39.96a7 7 0 0 0-1.63-.94L14.4 2.5a.5.5 0 0 0-.5-.34h-3.8a.5.5 0 0 0-.5.34l-.34 2.5a7 7 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.18L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.18l2.39-.96c.5.39 1.05.71 1.63.94l.34 2.5a.5.5 0 0 0 .5.34h3.8a.5.5 0 0 0 .5-.34l.34-2.5c.58-.23 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.18l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>

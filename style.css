@@ -38,9 +38,11 @@ body {
     min-height: 100vh;
     color: var(--ink);
     background-color: var(--user-background, var(--paper));
-    background-image: linear-gradient(rgba(24, 35, 34, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(24, 35, 34, .035) 1px, transparent 1px), linear-gradient(135deg, rgba(237, 106, 69, .08), transparent 34%);
+    background-image: linear-gradient(rgba(24, 35, 34, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(24, 35, 34, .035) 1px, transparent 1px), linear-gradient(120deg, #ffd7b8, #f6c7d8, #c4d8ff, #c8f0dd);
     background-size: 32px 32px, 32px 32px, auto;
     font-family: Georgia, 'Times New Roman', serif;
+    background-size: 32px 32px, 32px 32px, 380% 380%;
+    animation: welcome-gradient 18s ease infinite;
     transition: background-color .2s ease, color .2s ease;
 }
 
@@ -56,9 +58,13 @@ textarea { resize: vertical; }
 h1 { margin: 0; font-size: clamp(48px, 10vw, 72px); font-weight: 400; }
 .intro { margin: 10px 0 35px; color: var(--muted); font-size: 18px; }
 .auth-card { padding: 8px 30px 30px; border: 1px solid rgba(219, 228, 223, .8); border-radius: 4px; background: var(--white); box-shadow: var(--shadow); text-align: left; }
-.tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 27px; }
-.tab { padding: 17px 0 14px; border: 0; border-bottom: 2px solid transparent; color: var(--muted); background: transparent; font: 700 13px Arial, sans-serif; }
-.tab.is-active { border-bottom-color: var(--accent); color: var(--ink); }
+.tabs { position: relative; display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 27px; touch-action: pan-y; }
+.tab { position: relative; z-index: 1; padding: 17px 0 14px; border: 0; color: var(--muted); background: transparent; font: 700 13px Arial, sans-serif; }
+.tab.is-active { color: var(--ink); }
+.tab-indicator { position: absolute; bottom: -1px; left: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); transition: transform .25s ease, width .25s ease; pointer-events: none; }
+.google-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--white); font: 700 13px Arial, sans-serif; }
+.google-button:hover { border-color: var(--accent); background: rgba(255, 255, 255, .7); }
+.google-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #4285f4; font: 700 15px Arial, sans-serif; }
 .auth-form { display: grid; gap: 18px; }
 .field { display: grid; gap: 8px; }
 label { font: 700 12px Arial, sans-serif; }
@@ -194,6 +200,11 @@ body.chat-is-open { overflow: hidden; }
 @keyframes rise-in {
     from { opacity: 0; transform: translateY(14px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes welcome-gradient {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
 }
 
 @keyframes chat-open {

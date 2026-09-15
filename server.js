@@ -10,6 +10,9 @@ const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `http://localhost:${PORT}/api/discord/callback`;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${PORT}/api/google/callback`;
 const DATA_FILE = path.join(__dirname, 'data', 'users.json');
 const DATA_BACKUP_FILE = path.join(__dirname, 'data', 'users.backup.json');
 const DATA_TEMP_FILE = path.join(__dirname, 'data', 'users.tmp.json');
@@ -172,6 +175,19 @@ async function exchangeDiscordCode(code) {
     return userResponse.json();
 }
 
+async function exchangeGoogleCode(code) {
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET, code, grant_type: 'authorization_code', redirect_uri: GOOGLE_REDIRECT_URI })
+    });
+    if (!tokenResponse.ok) throw new Error('Google OAuth token exchange failed.');
+    const tokens = await tokenResponse.json();
+    const userResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers: { Authorization: `Bearer ${tokens.access_token}` } });
+    if (!userResponse.ok) throw new Error('Google user lookup failed.');
+    return userResponse.json();
+}
+
 function readBody(request) {
     return new Promise((resolve, reject) => {
         let body = '';
@@ -227,6 +243,52 @@ async function handleApi(request, response, pathname) {
         linkedUser.discord = { id: discord.id, username: discord.username, discriminator: discord.discriminator, avatar: discord.avatar };
         writeUsers(users);
         return redirect(response, `${publicSiteUrl()}/?discord=linked`);
+    }
+
+    if (pathname === '/api/google/start' && request.method === 'GET') {
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_non_configure`);
+        const state = crypto.randomBytes(24).toString('hex');
+        oauthStates.set(`google:${state}`, { expiresAt: Date.now() + 300000 });
+        const params = new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, response_type: 'code', redirect_uri: GOOGLE_REDIRECT_URI, scope: 'openid email profile', state });
+        return redirect(response, `https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+    }
+
+    if (pathname === '/api/google/callback' && request.method === 'GET') {
+        const query = new URL(request.url, `http://${request.headers.host}`).searchParams;
+        const stateData = oauthStates.get(`google:${query.get('state')}`);
+        oauthStates.delete(`google:${query.get('state')}`);
+        if (!stateData || stateData.expiresAt < Date.now()) return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_state_expire`);
+        if (query.get('error') || !query.get('code')) return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_refuse`);
+
+        let googleUser;
+        try {
+            googleUser = await exchangeGoogleCode(query.get('code'));
+        } catch (error) {
+            console.error(error);
+            return redirect(response, `${publicSiteUrl()}/?google=error&reason=google_exchange`);
+        }
+
+        const baseIdentifier = normalizeIdentifier((googleUser.email || googleUser.sub || 'google').split('@')[0]).replace(/[^a-z0-9_.-]/g, '').slice(0, 25) || 'google';
+        let identifier = baseIdentifier;
+        let suffix = 2;
+        while (users[identifier] && users[identifier].googleId !== googleUser.sub) identifier = `${baseIdentifier}${suffix++}`.slice(0, 32);
+
+        let user = users[identifier];
+        if (!user) {
+            user = { identifier, passwordHash: await hashPassword(crypto.randomBytes(32).toString('hex')), createdAt: new Date().toISOString(), loginCount: 0, description: '', theme: 'light', avatar: googleUser.picture || '', backgroundColor: '#f6f8f5', contacts: [], chats: {}, googleId: googleUser.sub, googleEmail: googleUser.email || '' };
+            users[identifier] = user;
+        }
+        user.googleId = googleUser.sub;
+        user.googleEmail = googleUser.email || user.googleEmail || '';
+        user.avatar = googleUser.picture || user.avatar || '';
+        user.loginCount = Number(user.loginCount || 0) + 1;
+        user.lastLoginAt = new Date().toISOString();
+        writeUsers(users);
+        const token = crypto.randomBytes(32).toString('hex');
+        sessions.set(token, user.identifier);
+        onlineUsers.add(user.identifier);
+        presenceState.set(user.identifier, { typing: false, voice: false, inChat: false });
+        return redirect(response, `${publicSiteUrl()}/?google=linked`, { 'Set-Cookie': `trugosia_session=${token}; HttpOnly; Path=/; SameSite=Lax` });
     }
 
     if (pathname === '/api/register' && request.method === 'POST') {
@@ -524,8 +586,8 @@ async function createSession(response, user) {
     return sendJson(response, 200, publicAccount(user, user.discord || null), { 'Set-Cookie': `trugosia_session=${token}; HttpOnly; Path=/; SameSite=Lax` });
 }
 
-function redirect(response, location) {
-    response.writeHead(302, { Location: location });
+function redirect(response, location, headers = {}) {
+    response.writeHead(302, { Location: location, ...headers });
     response.end();
 }
 
