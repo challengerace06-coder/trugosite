@@ -5,21 +5,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <title>Trugosia | Connexion</title>
+    <title>Trugosia | Lobby</title>
 </head>
 <body>
-    <main class="app-shell">
+    <main class="app-shell game-frame">
+        <section id="loading-view" class="loading-view" aria-label="Chargement de Trugosia">
+            <div class="loading-sigil" aria-hidden="true"><span>T</span></div>
+            <p class="loading-kicker">TRUGOSIA // ONLINE</p>
+            <h1>Chargement<span>...</span></h1>
+            <div class="loading-track" aria-hidden="true"><span></span></div>
+            <p class="loading-tip">Préparation du lobby</p>
+        </section>
+
         <section id="auth-view" class="auth-view" aria-labelledby="brand-title">
+            <div class="auth-topline"><span>SAISON 01</span><span>v1.0.4</span></div>
             <div class="brand-mark" aria-hidden="true">T</div>
-            <p class="eyebrow">Espace privé</p>
+            <p class="eyebrow">NEON FRONTIER</p>
             <h1 id="brand-title">Trugosia</h1>
-            <p class="intro">Votre espace, simplement.</p>
+            <p class="intro">Entrez dans la zone.</p>
 
             <div class="auth-card">
                 <div class="tabs" role="tablist" aria-label="Authentification">
                     <button class="tab is-active" type="button" role="tab" aria-selected="true" data-mode="login">Se connecter</button>
                     <button class="tab" type="button" role="tab" aria-selected="false" data-mode="register">Créer un compte</button>
-                    <span class="tab-indicator" aria-hidden="true"></span>
                 </div>
 
                 <form id="login-form" class="auth-form">
@@ -29,13 +37,9 @@
                     </div>
                     <div class="field">
                         <label for="login-password">Mot de passe</label>
-                        <div class="password-field">
-                            <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="votre mot de passe" required>
-                            <button class="password-toggle" type="button" data-password-target="login-password" aria-label="Afficher le mot de passe" aria-pressed="false">👁</button>
-                        </div>
+                        <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="votre mot de passe" required>
                     </div>
-                    <button class="primary-button" type="submit">Entrer dans Trugosia <span aria-hidden="true">→</span></button>
-                    <button id="google-login-button" class="google-button" type="button"><span class="google-mark">G</span> Continuer avec Google</button>
+                    <button class="primary-button" type="submit">Lancer la partie <span aria-hidden="true">→</span></button>
                 </form>
 
                 <form id="register-form" class="auth-form is-hidden">
@@ -45,184 +49,53 @@
                     </div>
                     <div class="field">
                         <label for="register-password">Choisissez un mot de passe</label>
-                        <div class="password-field">
-                            <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="6 caractères minimum" minlength="6" required>
-                            <button class="password-toggle" type="button" data-password-target="register-password" aria-label="Afficher le mot de passe" aria-pressed="false">👁</button>
-                        </div>
+                        <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="6 caractères minimum" minlength="6" required>
                     </div>
-                    <button class="primary-button" type="submit">Créer mon compte <span aria-hidden="true">→</span></button>
+                    <button class="primary-button" type="submit">Rejoindre Trugosia <span aria-hidden="true">→</span></button>
                 </form>
                 <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
             </div>
-            <p class="security-note"><span aria-hidden="true">⌁</span> Vos données restent sur cet appareil</p>
+            <p class="security-note"><span aria-hidden="true">◈</span> Connexion sécurisée // données locales</p>
         </section>
 
-        <section id="dashboard-view" class="dashboard-view is-hidden" aria-live="polite">
-            <header class="dashboard-header">
-                <div class="mini-brand"><span aria-hidden="true">T</span> Trugosia</div>
-                <button id="header-logout-button" class="logout-button" type="button">Se déconnecter</button>
+        <section id="lobby-view" class="lobby-view is-hidden" aria-labelledby="lobby-title">
+            <header class="lobby-header">
+                <div class="header-brand"><span class="brand-glyph" aria-hidden="true">T</span><span>TRUGOSIA</span></div>
+                <div class="header-status"><span class="status-dot"></span> SERVEURS EN LIGNE</div>
+                <button id="logout-button" class="icon-button logout-button" type="button" aria-label="Se déconnecter" title="Se déconnecter">↪</button>
             </header>
 
-            <div class="dashboard-body">
-                <section class="dashboard-panel is-active" data-panel="profile">
-                    <div class="panel-card profile-card">
-                        <div class="profile-head">
-                            <div class="profile-avatar" id="profile-avatar">T</div>
-                            <div>
-                                <p class="profile-caption">Compte</p>
-                                <h2 id="profile-name">Utilisateur</h2>
-                            </div>
-                        </div>
+            <div class="lobby-content">
+                <div class="lobby-heading"><p class="eyebrow">SECTEUR 07 // LOBBY</p><h2 id="lobby-title">CHOISIS TON<br><em>AVENTURE.</em></h2><p id="welcome-user" class="welcome-user"></p></div>
 
-                        <div class="stat-row">
-                            <span>Nombre de connexions</span>
-                            <strong id="login-count">0</strong>
-                        </div>
-
-                        <label class="field compact-field" for="profile-description">
-                            <span>Présentation</span>
-                            <textarea id="profile-description" rows="5" maxlength="240" placeholder="Décris toi en quelques mots..."></textarea>
-                        </label>
-
-                        <div class="profile-customization">
-                            <label class="field" for="profile-avatar-upload">
-                                <span>Photo de profil</span>
-                                <input id="profile-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
-                            </label>
-                            <label class="color-field" for="background-color">
-                                <span>Couleur du site</span>
-                                <input id="background-color" type="color" value="#f6f8f5">
-                            </label>
-                        </div>
-
-                        <button id="save-profile-button" class="primary-button secondary-cta" type="button">Enregistrer la description</button>
-                        <p id="profile-status" class="status-text" aria-live="polite"></p>
-                        <div class="profile-ratings">
-                            <h3>Notes Picnote reçues</h3>
-                            <div id="profile-ratings-list" class="ratings-list"></div>
-                        </div>
+                <div class="character-stage" aria-label="Votre personnage 3D">
+                    <div class="stage-ring ring-back"></div><div class="stage-ring ring-front"></div>
+                    <div class="character" id="character" tabindex="0" role="img" aria-label="Personnage Trugosia, faire tourner avec les flèches">
+                        <div class="character-shadow"></div><div class="character-body"><div class="body-panel"></div><div class="body-light"></div></div>
+                        <div class="character-head"><span class="visor"></span><span class="ear ear-left"></span><span class="ear ear-right"></span></div>
+                        <div class="character-arm arm-left"></div><div class="character-arm arm-right"></div><div class="character-leg leg-left"></div><div class="character-leg leg-right"></div>
                     </div>
-                </section>
+                    <div class="character-label"><span class="label-line"></span><span>ÉQUIPEMENT // PRÊT</span></div>
+                </div>
 
-                <section class="dashboard-panel" data-panel="add">
-                    <div class="panel-card add-card">
-                        <h3>Ajouter 😊</h3>
-                        <div class="search-box">
-                            <input id="member-search" type="text" placeholder="Rechercher un membre Trugosia..." autocomplete="off">
-                        </div>
-                        <div id="member-search-results" class="member-results"></div>
-                    </div>
-                </section>
-
-                <section class="dashboard-panel" data-panel="chatpro">
-                    <div class="panel-card chatpro-card">
-                        <div class="chat-layout">
-                            <aside class="chat-list-panel">
-                                <div class="chat-list-header">
-                                    <h3>ChatPro</h3>
-                                    <input id="chat-search" type="text" placeholder="Chercher un contact..." autocomplete="off">
-                                </div>
-                                <div id="contact-list" class="contact-list"></div>
-                            </aside>
-                            <div class="chat-panel">
-                                <div id="chat-header" class="chat-header">
-                                    <button id="close-chat-button" class="chat-back-button" type="button" aria-label="Fermer la conversation">←</button>
-                                    <span>Sélectionnez un contact</span>
-                                </div>
-                                <div id="chat-messages" class="chat-messages"></div>
-                                <div id="chat-status-bar" class="chat-status-bar"></div>
-                                <div class="chat-actions">
-                                    <button id="voice-button" class="secondary-button mini-button" type="button">🎙️ Vocal</button>
-                                    <label class="upload-button" for="image-upload">📷 Photo</label>
-                                    <input id="image-upload" type="file" accept="image/*" hidden>
-                                </div>
-                                <div class="chat-composer">
-                                    <textarea id="chat-input" rows="2" placeholder="Écrire un message..."></textarea>
-                                    <button id="send-message-button" class="primary-button" type="button">Envoyer</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="dashboard-panel" data-panel="picnote">
-                    <div class="panel-card picnote-card">
-                        <div class="picnote-heading">
-                            <div>
-                                <p class="profile-caption">Découvrir les membres</p>
-                                <h3>Picnote</h3>
-                            </div>
-                            <span id="picnote-counter" class="picnote-counter">0 photo</span>
-                        </div>
-                        <div id="picnote-stage" class="picnote-stage">
-                            <div class="empty-state">Les photos arrivent...</div>
-                        </div>
-                        <div id="picnote-score-area" class="picnote-score-area is-hidden">
-                            <label for="picnote-score">Ta note : <strong id="picnote-score-value">10</strong>/20</label>
-                            <input id="picnote-score" type="range" min="0" max="20" value="10">
-                            <button id="picnote-submit-score" class="primary-button" type="button">Envoyer la note</button>
-                        </div>
-                        <div class="picnote-actions">
-                            <button id="picnote-skip-button" class="secondary-button" type="button">Passer</button>
-                            <label class="upload-button" for="picnote-upload">📷 Publier une photo</label>
-                            <input id="picnote-upload" type="file" accept="image/*" capture="environment" hidden>
-                        </div>
-                        <p id="picnote-status" class="status-text" aria-live="polite"></p>
-                    </div>
-                </section>
-
-                <section class="dashboard-panel" data-panel="discord">
-                    <div class="panel-card">
-                        <h3>Trugo +</h3>
-                        <p class="profile-caption">Connexion sociale</p>
-                        <p id="discord-state" class="muted-text">Aucun compte Discord associé.</p>
-                        <div id="discord-user-card" class="discord-user-card"></div>
-                        <a id="discord-link" class="discord-link" href="/api/discord/start">Connecter mon compte Trugosia à Discord</a>
-                    </div>
-                </section>
-
-                <section class="dashboard-panel" data-panel="settings">
-                    <div class="panel-card settings-card">
-                        <h3>Paramètres</h3>
-
-                        <label class="toggle-row" for="dark-mode-toggle">
-                            <span>Mode sombre</span>
-                            <input id="dark-mode-toggle" type="checkbox">
-                        </label>
-
-                        <button id="logout-button" class="secondary-button" type="button">Se déconnecter</button>
-                        <button id="delete-account-button" class="danger-button" type="button">Supprimer le compte</button>
-                    </div>
-                </section>
+                <div class="lobby-actions">
+                    <div class="left-actions"><button id="wallet-button" class="utility-button" type="button"><span class="action-icon">$</span><span><strong id="wallet-balance">1 250</strong><small>crédits</small></span></button><button id="store-button" class="utility-button" type="button"><span class="action-icon">▦</span><span>magasin<small>objets &amp; skins</small></span></button></div>
+                    <button id="play-button" class="play-button" type="button"><span class="play-pulse"></span><span class="play-copy"><small>PROCHAIN MATCH</small><strong>JOUER</strong></span><span class="play-arrow" aria-hidden="true">↗</span></button>
+                </div>
             </div>
 
-            <nav class="bottom-nav" aria-label="Navigation Trugosia">
-                <button class="nav-item is-active" type="button" data-panel="profile" aria-label="Profil">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 3l8 7.5V20a1 1 0 0 1-1 1h-4v-7H9v7H5a1 1 0 0 1-1-1z"/></svg>
-                    <span>Profil</span>
-                </button>
-                <button class="nav-item" type="button" data-panel="add" aria-label="Ajouter">
-                    <span class="nav-emoji" aria-hidden="true">😊</span>
-                    <span>Ajouter</span>
-                </button>
-                <button class="nav-item" type="button" data-panel="chatpro" aria-label="ChatPro">
-                    <span class="nav-emoji" aria-hidden="true">💬</span>
-                    <span>ChatPro</span>
-                </button>
-                <button class="nav-item" type="button" data-panel="picnote" aria-label="Picnote">
-                    <span class="nav-emoji" aria-hidden="true">📸</span>
-                    <span>Picnote</span>
-                </button>
-                <button class="nav-item" type="button" data-panel="discord" aria-label="Trugo plus">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2.5a2.5 2.5 0 0 0-2.5 2.5v14A2.5 2.5 0 0 0 7 21.5h10a2.5 2.5 0 0 0 2.5-2.5V5A2.5 2.5 0 0 0 17 2.5zm0 2h10a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5zm3.5 3h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1zm0 5h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-.5a1 1 0 0 1 1-1z"/></svg>
-                    <span>Trugo +</span>
-                </button>
-                <button class="nav-item" type="button" data-panel="settings" aria-label="Paramètres">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.62.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.18l-2.39.96a7 7 0 0 0-1.63-.94L14.4 2.5a.5.5 0 0 0-.5-.34h-3.8a.5.5 0 0 0-.5.34l-.34 2.5a7 7 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.18L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.62-.06.94s.02.63.06.94L2.83 14.52a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.18l2.39-.96c.5.39 1.05.71 1.63.94l.34 2.5a.5.5 0 0 0 .5.34h3.8a.5.5 0 0 0 .5-.34l.34-2.5c.58-.23 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.18l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>
-                    <span>Paramètres</span>
-                </button>
+            <nav class="lobby-nav" aria-label="Navigation du lobby">
+                <button id="profile-button" class="nav-button profile-button" type="button"><span class="avatar avatar-player">T</span><span>profil</span></button>
+                <button id="friends-button" class="nav-button" type="button"><span class="nav-symbol">+</span><span>ajouter</span><small>amis</small></button>
+                <button id="teams-button" class="nav-button" type="button"><span class="nav-symbol">◈</span><span>équipe</span><small>escouade</small></button>
             </nav>
         </section>
+
+        <div id="panel-backdrop" class="panel-backdrop is-hidden"></div>
+        <aside id="lobby-panel" class="lobby-panel is-hidden" aria-live="polite" aria-label="Panneau du lobby">
+            <button id="panel-close" class="panel-close" type="button" aria-label="Fermer">×</button>
+            <div id="panel-content"></div>
+        </aside>
     </main>
     <script src="script.js"></script>
 </body>

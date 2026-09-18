@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"terminal.integrated.env.windows": {
+			"Path": "C:\\Program Files\\Git\\cmd;C:\\Program Files\\nodejs;${env:Path}"
+		}
+	}
+}
